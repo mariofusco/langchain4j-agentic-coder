@@ -20,10 +20,5 @@ import dev.langchain4j.agentic.observability.MonitoredAgent;
  */
 public interface CoderSystem extends MonitoredAgent {
 
-    @Agent(description = """
-                    A multi-agent coding assistant that can explore codebases,
-                    plan implementations, write/edit code, and run builds/tests.
-                    It orchestrates specialized sub-agents to fulfill coding requests.
-                    """)
     String code(@K(UserRequest.class) String request, @K(WorkingDirectory.class) String workingDirectory);
 }
