@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LangChain4j Agentic System Report</title>
+<style>
+:root {
+    --green: #2e8555;
+    --green-dk: #205d3b;
+    --green-lt: #3cad6e;
+    --teal: #25c2a0;
+    --c-ai: #2e8555;
+    --c-nonai: #6b7280;
+    --c-human: #d97706;
+    --c-seq: #0891b2;
+    --c-par: #3b82f6;
+    --c-loop: #7c3aed;
+    --c-rtr: #dc2626;
+    --c-star: #ca8a04;
+    --bg: #f8faf9;
+    --bg2: #f0f4f2;
+    --fg: #1a1a2e;
+    --fg2: #4a5568;
+    --fg3: #718096;
+    --brd: #e2e8f0;
+    --conn: #cbd5e1;
+    --rad: 8px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg); color:var(--fg); line-height:1.6; }
+
+/* ---- Navbar ---- */
+.navbar { background:linear-gradient(135deg,var(--green-dk),var(--green));
+          color:#fff; padding:14px 32px; display:flex; align-items:center; gap:14px;
+          box-shadow:0 2px 8px rgba(0,0,0,.15); position:sticky; top:0; z-index:100; }
+.navbar-logo { display:flex; align-items:center; justify-content:center; }
+.navbar-title { font-size:20px; font-weight:600; letter-spacing:-.3px; }
+.navbar-subtitle { font-size:13px; opacity:.75; margin-left:auto; }
+
+/* ---- Container ---- */
+.container { max-width:1440px; margin:0 auto; padding:32px; }
+
+/* ---- Section ---- */
+.section { margin-bottom:40px; }
+.section-header { display:flex; align-items:center; gap:12px; margin-bottom:16px;
+                  padding-bottom:10px; border-bottom:2px solid var(--green); }
+.section-icon { width:30px; height:30px; background:var(--green); border-radius:var(--rad);
+                display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.section-title { font-size:21px; font-weight:600; }
+.section-count { font-size:12px; color:var(--fg3); background:var(--bg2);
+                 padding:2px 10px; border-radius:12px; }
+
+/* ---- Legend ---- */
+.legend { display:flex; flex-wrap:wrap; gap:14px; margin-bottom:18px;
+          padding:10px 16px; background:#fff; border:1px solid var(--brd); border-radius:var(--rad); }
+.legend-item { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--fg2); }
+.legend-dot { width:12px; height:12px; border-radius:3px; }
+
+/* ---- Org tree (top-down CSS connector chart) ---- */
+.topology-scroll { overflow-x:auto; padding:16px 0; }
+.org-tree { text-align:center; }
+.org-tree ul { display:flex; justify-content:center; padding-top:24px;
+               position:relative; list-style:none; }
+.org-tree > ul { padding-top:0; }
+.org-tree li { display:flex; flex-direction:column; align-items:center;
+               position:relative; padding:24px 10px 0; }
+.org-tree > ul > li { padding-top:0; }
+
+/* vertical line from parent ul down to horizontal bar */
+.org-tree ul::before { content:''; position:absolute; top:0; left:50%;
+                       border-left:2px solid var(--conn); height:24px; }
+.org-tree > ul::before { display:none; }
+
+/* horizontal bar + vertical drop per child */
+.org-tree li::before, .org-tree li::after {
+    content:''; position:absolute; top:0; width:50%; height:24px;
+    border-top:2px solid var(--conn); }
+.org-tree li::before { right:50%; }
+.org-tree li::after  { left:50%; border-left:2px solid var(--conn); }
+.org-tree > ul > li::before, .org-tree > ul > li::after { display:none; }
+.org-tree li:first-child::before { border-top:none; }
+.org-tree li:last-child::after   { border-top:none; }
+.org-tree li:only-child::before  { display:none; }
+.org-tree li:only-child::after   { border-top:none; }
+
+/* ---- Node card ---- */
+.node-card { position:relative; background:#fff; border:1px solid var(--brd);
+             border-radius:var(--rad); padding:10px 14px; min-width:140px; max-width:260px;
+             box-shadow:0 1px 3px rgba(0,0,0,.06); transition:box-shadow .2s,transform .2s; text-align:left; }
+.node-card:hover { box-shadow:0 4px 14px rgba(0,0,0,.1); transform:translateY(-2px); }
+.node-card-header { display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap; }
+.agent-name { font-size:14px; font-weight:600; }
+
+.topology-badge { display:inline-block; padding:1px 7px; border-radius:4px;
+                  font-size:10px; font-weight:700; text-transform:uppercase;
+                  letter-spacing:.4px; color:#fff; }
+.topology-badge.sm { font-size:9px; padding:0 5px; }
+.topology-badge.ai    { background:var(--c-ai); }
+.topology-badge.nonai { background:var(--c-nonai); }
+.topology-badge.human { background:var(--c-human); }
+.topology-badge.seq   { background:var(--c-seq); }
+.topology-badge.par   { background:var(--c-par); }
+.topology-badge.loop  { background:var(--c-loop); }
+.topology-badge.rtr   { background:var(--c-rtr); }
+.topology-badge.star  { background:var(--c-star); }
+
+.node-border-ai    { border-left:3px solid var(--c-ai); }
+.node-border-nonai { border-left:3px solid var(--c-nonai); }
+.node-border-human { border-left:3px solid var(--c-human); }
+.node-border-seq   { border-left:3px solid var(--c-seq); }
+.node-border-par   { border-left:3px solid var(--c-par); }
+.node-border-loop  { border-left:3px solid var(--c-loop); }
+.node-border-rtr   { border-left:3px solid var(--c-rtr); }
+.node-border-star  { border-left:3px solid var(--c-star); }
+
+.async-badge { font-size:9px; background:#fef3c7; color:#92400e; padding:0 5px;
+               border-radius:3px; border:1px solid #fcd34d; }
+
+.node-details { font-size:11px; }
+.node-detail { display:flex; gap:4px; margin-top:1px; }
+.nd-label { color:var(--fg3); font-weight:500; }
+.nd-value { color:var(--fg2); }
+
+.condition-label { font-size:9px; background:#fef3c7; color:#92400e;
+                   padding:1px 8px; border-radius:3px; border:1px solid #fcd34d;
+                   margin-bottom:4px; white-space:nowrap; }
+
+.loop-info { display:flex; gap:6px; margin-top:4px; flex-wrap:wrap; }
+.loop-tag { font-size:10px; background:#ede9fe; color:#5b21b6;
+            padding:0 6px; border-radius:3px; border:1px solid #c4b5fd; }
+
+/* ---- Data-flow key badges ---- */
+.key-flow { display:flex; flex-wrap:wrap; gap:3px; margin-top:5px;
+            padding-top:5px; border-top:1px dashed var(--brd); }
+.key-pill { font-size:9px; font-weight:600; padding:0 6px; border-radius:3px;
+            border:1px solid var(--kc);
+            background:#fff; color:var(--kc); white-space:nowrap;
+            opacity:.85; }
+
+/* ---- Data-flow SVG overlay ---- */
+.df-svg { position:absolute; top:0; left:0; pointer-events:none; z-index:2; overflow:visible; }
+.df-svg.df-hidden { display:none; }
+
+/* ---- Data-flow legend ---- */
+.df-legend { align-items:center; }
+.df-legend-title { font-size:12px; font-weight:600; color:var(--fg); margin-right:4px; }
+.df-toggle { margin-left:auto; font-size:11px; padding:3px 12px; border-radius:4px;
+             border:1px solid var(--brd); background:var(--bg2); color:var(--fg2);
+             cursor:pointer; transition:background .15s; }
+.df-toggle:hover { background:var(--brd); }
+
+/* ---- Execution groups ---- */
+.execution-group { margin-bottom:12px; }
+.execution-header { display:flex; align-items:center; gap:10px; padding:10px 16px;
+                    background:#fff; border:1px solid var(--brd);
+                    border-radius:var(--rad) var(--rad) 0 0;
+                    cursor:pointer; user-select:none; transition:background .15s; }
+.execution-header:hover { background:var(--bg2); }
+.execution-header.collapsed { border-radius:var(--rad); }
+.chevron { transition:transform .2s; color:var(--fg3); font-size:11px; }
+.execution-header.collapsed .chevron { transform:rotate(-90deg); }
+.execution-memory-id { font-weight:600; font-size:14px; }
+.execution-meta { margin-left:auto; display:flex; gap:8px; align-items:center; }
+
+.status-badge { padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+.st-ok   { background:#d1fae5; color:#065f46; }
+.st-fail { background:#fee2e2; color:#991b1b; }
+.st-run  { background:#dbeafe; color:#1e40af; }
+
+.execution-body { border:1px solid var(--brd); border-top:none;
+                  border-radius:0 0 var(--rad) var(--rad); background:#fff; overflow:hidden; }
+.execution-body.collapsed { display:none; }
+
+/* ---- Single execution ---- */
+.single-exec { padding:12px 16px; border-bottom:1px solid var(--brd); }
+.single-exec:last-child { border-bottom:none; }
+.exec-summary { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+.status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.st-dot-ok   { background:#10b981; }
+.st-dot-fail { background:#ef4444; }
+.st-dot-run  { background:#3b82f6; animation:pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.exec-agent { font-weight:600; font-size:14px; }
+.dur-badge { font-size:12px; color:var(--fg3); font-family:'SF Mono','Fira Code',monospace; }
+.exec-time { font-size:11px; color:var(--fg3); }
+
+.error-box { background:#fef2f2; border:1px solid #fecaca; border-radius:var(--rad);
+             padding:8px 12px; margin-bottom:8px; font-size:12px; color:#991b1b; }
+.error-box code { font-size:11px; word-break:break-all; }
+
+/* ---- Waterfall table ---- */
+.wf-table { width:100%; border-collapse:collapse; font-size:13px; }
+.wf-table th { text-align:left; padding:6px 10px; background:var(--bg2); color:var(--fg3);
+               font-size:10px; font-weight:600; text-transform:uppercase;
+               letter-spacing:.5px; border-bottom:1px solid var(--brd); }
+.wf-table td { padding:5px 10px; border-bottom:1px solid var(--brd); vertical-align:middle; }
+.wf-table tr:last-child td { border-bottom:none; }
+.wf-table tr:hover { background:var(--bg); }
+.wf-timeline-col { width:35%; }
+
+.wf-agent { display:flex; align-items:center; gap:4px; white-space:nowrap; }
+.wf-indent { display:inline-block; width:18px; }
+.wf-connector { color:var(--conn); font-family:monospace; margin-right:2px; font-size:12px; }
+.wf-dur { font-family:'SF Mono','Fira Code',monospace; font-size:12px; color:var(--fg2); white-space:nowrap; }
+
+.wf-bar-track { position:relative; height:18px; background:var(--bg2); border-radius:3px; min-width:120px; }
+.wf-bar { position:absolute; top:2px; height:14px; border-radius:3px; opacity:.8; min-width:2px;
+          transition:opacity .15s; }
+.wf-bar:hover { opacity:1; }
+.bar-ai    { background:var(--c-ai); }
+.bar-nonai { background:var(--c-nonai); }
+.bar-human { background:var(--c-human); }
+.bar-seq   { background:var(--c-seq); }
+.bar-par   { background:var(--c-par); }
+.bar-loop  { background:var(--c-loop); }
+.bar-rtr   { background:var(--c-rtr); }
+.bar-star  { background:var(--c-star); }
+
+.wf-io { font-size:11px; color:var(--fg3); max-width:200px;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.iter-tag { font-size:9px; background:#ede9fe; color:#5b21b6;
+            padding:0 5px; border-radius:3px; border:1px solid #c4b5fd;
+            font-weight:600; white-space:nowrap; }
+
+/* ---- Tooltip ---- */
+.tt-trigger { position:relative; cursor:help; }
+.tt-trigger .tt-content { display:none; position:absolute; bottom:calc(100% + 4px); left:0;
+                          background:var(--fg); color:#fff; padding:6px 10px; border-radius:6px;
+                          font-size:11px; white-space:pre-wrap; max-width:400px; z-index:10;
+                          box-shadow:0 4px 12px rgba(0,0,0,.2); word-break:break-all; }
+.tt-trigger:hover .tt-content { display:block; }
+
+/* ---- Footer ---- */
+.footer { text-align:center; padding:24px 0 8px; font-size:12px; color:var(--fg3);
+          border-top:1px solid var(--brd); margin-top:20px; }
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="navbar-logo"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="6" fill="white" fill-opacity="0.2"/><path d="M7 8h14M7 14h14M7 20h10" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></div>
+  <div class="navbar-title">LangChain4j Agentic System Report</div>
+  <div class="navbar-subtitle">LangChain4j Agentic System</div>
+</nav>
+<main class="container">
+<section class="section">
+<div class="section-header">
+  <div class="section-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="2" fill="white"/><circle cx="4" cy="13" r="2" fill="white"/><circle cx="12" cy="13" r="2" fill="white"/><line x1="8" y1="5" x2="4" y2="11" stroke="white" stroke-width="1.5"/><line x1="8" y1="5" x2="12" y2="11" stroke="white" stroke-width="1.5"/></svg></div>
+  <h2 class="section-title">System Topology</h2>
+</div>
+<div class="legend">
+<div class="legend-item"><div class="legend-dot" style="background:#0891b2"></div><span>Sequence</span></div>
+<div class="legend-item"><div class="legend-dot" style="background:#2e8555"></div><span>AI</span></div>
+</div>
+<div class="legend df-legend">
+<span class="df-legend-title">Data Flow</span><div class="legend-item"><div class="legend-dot" style="background:#e63946"></div><span>ExplorationResult</span></div>
+<div class="legend-item"><div class="legend-dot" style="background:#457b9d"></div><span>UserRequest</span></div>
+<div class="legend-item"><div class="legend-dot" style="background:#2a9d8f"></div><span>WorkingDirectory</span></div>
+<div class="legend-item"><div class="legend-dot" style="background:#e9c46a"></div><span>Plan</span></div>
+<div class="legend-item"><div class="legend-dot" style="background:#7b2d8e"></div><span>ImplementationResult</span></div>
+<div class="legend-item"><div class="legend-dot" style="background:#f4a261"></div><span>ExecutionResult</span></div>
+<button class="df-toggle" onclick="toggleDataFlow()">Toggle Edges</button></div>
+<div class="topology-scroll">
+<div class="org-tree" style="position:relative">
+<svg id="df-svg" class="df-svg"><defs><marker id="ah-786889728" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#e63946"/></marker><marker id="ah-1833272284" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#457b9d"/></marker><marker id="ah-1912775076" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#2a9d8f"/></marker><marker id="ah-2490185" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#e9c46a"/></marker><marker id="ah-1068926607" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#7b2d8e"/></marker><marker id="ah-278906165" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#f4a261"/></marker></defs></svg>
+<ul>
+<li>
+<div class="node-card node-border-seq" data-agent-id="Supervisor">
+<div class="node-card-header"><span class="topology-badge seq">Sequence</span><span class="agent-name">Supervisor</span></div>
+<div class="node-details">
+<div class="node-detail"><span class="nd-label">Type</span> <span class="nd-value">SupervisorCoderSystem</span></div>
+<div class="node-detail"><span class="nd-label">Returns</span> <span class="nd-value">Object</span></div>
+<div class="node-detail"><span class="nd-label">Planner</span> <span class="nd-value">SupervisorPlanner</span></div>
+</div>
+</div>
+<ul>
+<li>
+<div class="node-card node-border-ai" data-agent-id="explore$0" data-output-key="ExplorationResult" data-output-color="#e63946" data-input-keys="UserRequest,WorkingDirectory">
+<div class="node-card-header"><span class="topology-badge ai">AI</span><span class="agent-name">explore</span></div>
+<div class="node-details">
+<div class="node-detail"><span class="nd-label">Type</span> <span class="nd-value">ExplorerAgent</span></div>
+<div class="node-detail"><span class="nd-label">Desc</span> <span class="nd-value">Explores and analyzes a codebase using file reading, glob se...</span></div>
+<div class="node-detail"><span class="nd-label">Returns</span> <span class="nd-value">String</span></div>
+</div>
+<div class="key-flow"><span class="key-pill key-in" style="--kc:#457b9d">&#8592; UserRequest</span><span class="key-pill key-in" style="--kc:#2a9d8f">&#8592; WorkingDirectory</span><span class="key-pill key-out" style="--kc:#e63946">&#8594; ExplorationResult</span></div>
+</div>
+</li>
+<li>
+<div class="node-card node-border-ai" data-agent-id="plan$1" data-output-key="Plan" data-output-color="#e9c46a" data-input-keys="UserRequest,ExplorationResult">
+<div class="node-card-header"><span class="topology-badge ai">AI</span><span class="agent-name">plan</span></div>
+<div class="node-details">
+<div class="node-detail"><span class="nd-label">Type</span> <span class="nd-value">PlannerAgent</span></div>
+<div class="node-detail"><span class="nd-label">Desc</span> <span class="nd-value">Creates detailed implementation plans based on user requests...</span></div>
+<div class="node-detail"><span class="nd-label">Returns</span> <span class="nd-value">String</span></div>
+</div>
+<div class="key-flow"><span class="key-pill key-in" style="--kc:#457b9d">&#8592; UserRequest</span><span class="key-pill key-in" style="--kc:#e63946">&#8592; ExplorationResult</span><span class="key-pill key-out" style="--kc:#e9c46a">&#8594; Plan</span></div>
+</div>
+</li>
+<li>
+<div class="node-card node-border-ai" data-agent-id="implement$2" data-output-key="ImplementationResult" data-output-color="#7b2d8e" data-input-keys="Plan,UserRequest,WorkingDirectory">
+<div class="node-card-header"><span class="topology-badge ai">AI</span><span class="agent-name">implement</span></div>
+<div class="node-details">
+<div class="node-detail"><span class="nd-label">Type</span> <span class="nd-value">ImplementerAgent</span></div>
+<div class="node-detail"><span class="nd-label">Desc</span> <span class="nd-value">Implements code changes by writing and editing files accordi...</span></div>
+<div class="node-detail"><span class="nd-label">Returns</span> <span class="nd-value">String</span></div>
+</div>
+<div class="key-flow"><span class="key-pill key-in" style="--kc:#e9c46a">&#8592; Plan</span><span class="key-pill key-in" style="--kc:#457b9d">&#8592; UserRequest</span><span class="key-pill key-in" style="--kc:#2a9d8f">&#8592; WorkingDirectory</span><span class="key-pill key-out" style="--kc:#7b2d8e">&#8594; ImplementationResult</span></div>
+</div>
+</li>
+<li>
+<div class="node-card node-border-ai" data-agent-id="execute$3" data-output-key="ExecutionResult" data-output-color="#f4a261" data-input-keys="ImplementationResult,WorkingDirectory">
+<div class="node-card-header"><span class="topology-badge ai">AI</span><span class="agent-name">execute</span></div>
+<div class="node-details">
+<div class="node-detail"><span class="nd-label">Type</span> <span class="nd-value">ExecutorAgent</span></div>
+<div class="node-detail"><span class="nd-label">Desc</span> <span class="nd-value">Executes shell commands to build and test code changes</span></div>
+<div class="node-detail"><span class="nd-label">Returns</span> <span class="nd-value">String</span></div>
+</div>
+<div class="key-flow"><span class="key-pill key-in" style="--kc:#7b2d8e">&#8592; ImplementationResult</span><span class="key-pill key-in" style="--kc:#2a9d8f">&#8592; WorkingDirectory</span><span class="key-pill key-out" style="--kc:#f4a261">&#8594; ExecutionResult</span></div>
+</div>
+</li>
+</ul>
+</li>
+</ul></div>
+</div>
+</section>
+<section class="section">
+<div class="section-header">
+  <div class="section-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="2" rx="1" fill="white"/><rect x="1" y="7" width="10" height="2" rx="1" fill="white"/><rect x="1" y="11" width="12" height="2" rx="1" fill="white"/></svg></div>
+  <h2 class="section-title">Execution History</h2>
+  <span class="section-count">1 session(s)</span>
+</div>
+<div class="execution-group">
+<div class="execution-header" onclick="toggle('g0')">
+  <span class="chevron">&#9660;</span>  <span class="execution-memory-id">Session: 0965cd30-cab1-40e3-8bba-aeb539d126cd</span>  <div class="execution-meta">    <span class="section-count">1 run(s)</span><span class="status-badge st-ok">1 success</span>  </div>
+</div>
+<div id="g0" class="execution-body">
+<div class="single-exec">
+<div class="exec-summary"><span class="status-dot st-dot-ok"></span><span class="exec-agent">Supervisor</span><span class="dur-badge">6m 9s</span><span class="exec-time">12:17:17.591 &#8594; 12:23:27.579</span></div>
+<table class="wf-table">
+<thead><tr><th>Agent</th><th>Duration</th><th class="wf-timeline-col">Timeline</th><th>Input</th><th>Output</th></tr></thead>
+<tbody>
+<tr><td><div class="wf-agent"><span class="topology-badge sm seq">Sequence</span> Supervisor</div></td><td class="wf-dur">6m 9s</td><td><div class="wf-bar-track"><div class="wf-bar bar-seq" style="left:0.0%;width:100.0%;" title="Supervisor: 6m 9s"></div></div></td><td class="wf-io"><span class="tt-trigger">{WorkingDirectory=/tmp/buggy-calcul...<span class="tt-content">{WorkingDirectory=/tmp/buggy-calculator, UserRequest=Analyze the Calculator.java source and run its tests with &#39;m...}</span></span></td><td class="wf-io"><span class="tt-trigger">I inspected the project at /tmp/bug...<span class="tt-content">I inspected the project at /tmp/buggy-calculator, located src/main/java/Calculator.java and the tests in src/test/java/CalculatorTest.java, applied fixes to Calculator.java, and ran the test suite.
+
+Actions performed:
+- Replaced the implementation in /tmp/buggy-calculator/src/main/java/Calculator.java with corrected code.
+  - sum(List&lt;Integer&gt;): switched to a for-each loop to avoid index-out-of-bounds and handle empty lists.
+  - average(List&lt;Integer&gt;): return 0 for empty lists and use (double) sum(...) / size() for floating-point division.
+  - max(List&lt;Integer&gt;): throw on empty list and initialize max from the first element to handle all-negative lists correctly.
+  - factorial(int): validate n &gt;= 0 and loop i = 1..n (inclusive) to compute n!.
+
+Commands executed and results:
+- mvn -f /tmp/buggy-calculator -DskipTests=true package -&gt; BUILD SUCCESS (compiled and packaged)
+- mvn -f /tmp/buggy-calculator test -&gt; BUILD SUCCESS, tests run: 11, failures: 0, errors: 0, skipped: 0
+
+Result: All tests in CalculatorTest.java pass (11/11). If you want, I can show the updated Calculator.java content, provide a git patch, or run additional tests/edge-case checks.</span></span></td></tr>
+<tr><td><div class="wf-agent"><span class="wf-indent"></span><span class="wf-connector">&#x2514;</span><span class="topology-badge sm ai">AI</span> explore</div></td><td class="wf-dur">3m 16s</td><td><div class="wf-bar-track"><div class="wf-bar bar-ai" style="left:1.8%;width:53.1%;" title="explore: 3m 16s"></div></div></td><td class="wf-io"><span class="tt-trigger">{WorkingDirectory=/tmp/buggy-calcul...<span class="tt-content">{WorkingDirectory=/tmp/buggy-calculator, UserRequest=Analyze Calculator.java source and run its tests with &#39;mvn t...}</span></span></td><td class="wf-io"><span class="tt-trigger">I inspected the project at /tmp/bug...<span class="tt-content">I inspected the project at /tmp/buggy-calculator to locate Calculator.java and the tests, and I analyzed the code to determine why the test suite fails. I could not execute mvn test from this toolset, but reading the sources and tests shows multiple clear bugs that will cause the test suite to fail (including an exception for sum on non-empty and empty lists). Below is a structured exploration summary, the likely test failures, exact source locations, and recommended fixes to make the tests pass.
+
+1) Project structure (top-level)
+- pom.xml — Maven project file (JUnit Jupiter dependency)
+- src/main/java/Calculator.java — main implementation (single class)
+- src/test/java/CalculatorTest.java — JUnit 5 tests
+
+2) Key files and purposes
+- src/main/java/Calculator.java
+  - sum(List&lt;Integer&gt;): sum of numbers
+  - average(List&lt;Integer&gt;): average of numbers
+  - max(List&lt;Integer&gt;): maximum value, throws on empty list
+  - factorial(int n): factorial, throws for negative n
+- src/test/java/CalculatorTest.java
+  - Tests for sum (including empty list), average (including empty list), max (positive and negative numbers and empty list), factorial (various n and negative case)
+
+3) Problems found in Calculator.java (file with line numbers from the source)
+File: /tmp/buggy-calculator/src/main/java/Calculator.java
+
+- sum method (lines 11–17)
+  - Code:
+    11  public int sum(List&lt;Integer&gt; numbers) {
+    12      int total = 0;
+    13      for (int i = 0; i &lt;= numbers.size(); i++) {
+    14          total += numbers.get(i);
+    15      }
+    16      return total;
+    17  }
+  - Issues:
+    - The loop uses i &lt;= numbers.size() so numbers.get(i) will cause IndexOutOfBoundsException when i == numbers.size().
+    - For empty lists, the loop executes with i == 0 and numbers.get(0) will throw IndexOutOfBoundsException.
+  - Fix:
+    - Change the loop condition to i &lt; numbers.size() (or use a for-each loop).
+    - Example corrected loop: for (int i = 0; i &lt; numbers.size(); i++) { total += numbers.get(i); }
+
+- average method (lines 22–27)
+  - Code:
+    22  public double average(List&lt;Integer&gt; numbers) {
+    23      if (numbers.isEmpty()) {
+    24          return 0;
+    25      }
+    26      return sum(numbers) / numbers.size();
+    27  }
+  - Issue:
+    - sum(numbers) and numbers.size() are ints; the division is integer division. That yields wrong result for averages that are not whole numbers (e.g., [1,2,3,4] expected 2.5 but integer division yields 2).
+  - Fix:
+    - Use floating-point division: return (double) sum(numbers) / numbers.size();
+
+- max method (lines 33–44)
+  - Code:
+    33  public int max(List&lt;Integer&gt; numbers) {
+    34      if (numbers.isEmpty()) {
+    35          throw new IllegalArgumentException(&quot;List must not be empty&quot;);
+    36      }
+    37      int max = 0;
+    38      for (int n : numbers) {
+    39          if (n &gt; max) {
+    40              max = n;
+    41          }
+    42      }
+    43      return max;
+    44  }
+  - Issue:
+    - max is initialized to 0. If all numbers are negative (e.g., [-5, -1, -3]) the method will incorrectly return 0 instead of the largest negative number.
+  - Fix:
+    - Initialize max to the first element of the list: int max = numbers.get(0); then iterate over the rest (or use Integer.MIN_VALUE and handle empty as already done).
+    - Example:
+        int max = numbers.get(0);
+        for (int i = 1; i &lt; numbers.size(); i++) {
+            if (numbers.get(i) &gt; max) max = numbers.get(i);
+        }
+
+- factorial method (lines 50–59)
+  - Code:
+    50  public long factorial(int n) {
+    51      if (n &lt; 0) {
+    52          throw new IllegalArgumentException(&quot;n must be non-negative&quot;);
+    53      }
+    54      long result = 1;
+    55      for (int i = 1; i &lt; n; i++) {
+    56          result *= i;
+    57      }
+    58      return result;
+    59  }
+  - Issue:
+    - The loop multiplies values 1..(n-1) (i &lt; n) so factorial(n) returns (n-1)! instead of n!. For example factorial(5) returns 24 instead of 120.
+  - Fix:
+    - Loop should include n. Use for (int i = 1; i &lt;= n; i++) result *= i;
+    - (Or start result = 1 and loop i = 2..n to avoid unnecessary multiply by 1.)
+
+4) Tests that will fail (based on analyzing test file)
+File: /tmp/buggy-calculator/src/test/java/CalculatorTest.java
+
+- sum_of_positive_numbers (line 11–13)
+  - Test: assertEquals(10, calc.sum(List.of(1,2,3,4)));
+  - Likely outcome:
+    - With current code, this will throw IndexOutOfBoundsException due to the &lt;= loop in sum.
+
+- sum_of_empty_list (line 16–18)
+  - Test: assertEquals(0, calc.sum(List.of()));
+  - Likely outcome:
+    - With current code, this will throw IndexOutOfBoundsException (attempt to access index 0).
+
+- average_of_positive_numbers (line 21–23)
+  - Test: assertEquals(2.5, calc.average(List.of(1,2,3,4)));
+  - Likely outcome:
+    - Even after fixing sum, average currently does integer division and will return 2.0 (or if sum not fixed it may throw). The test will therefore fail due to wrong numeric value.
+
+- max_with_negative_numbers (line 36–38)
+  - Test: assertEquals(-1, calc.max(List.of(-5, -1, -3)));
+  - Likely outcome:
+    - Current max returns 0 (initialization bug), so test fails.
+
+- factorial_of_5 (line 46–48)
+  - Test: assertEquals(120, calc.factorial(5));
+  - Likely outcome:
+    - Current factorial returns 24 (4!), so test fails.
+
+Other tests expected to pass:
+- average_of_empty_list (returns 0 when list empty) — passes as code returns 0 for empty list.
+- max_of_empty_list_throws (correctly throws IllegalArgumentException) — passes.
+- factorial_of_0 and factorial_of_1 — current implementation returns 1 for n=0 and n=1, so these pass.
+- factorial_of_negative_throws — passes.
+
+5) Exact lines to change (suggested patches)
+- src/main/java/Calculator.java
+  - Change sum loop condition (line 13):
+    - From: for (int i = 0; i &lt;= numbers.size(); i++) {
+    - To:   for (int i = 0; i &lt; numbers.size(); i++) {
+    - Or simpler: for (int n : numbers) total += n;
+  - Change average division (line 26):
+    - From: return sum(numbers) / numbers.size();
+    - To:   return (double) sum(numbers) / numbers.size();
+  - Change max initialization (line 37):
+    - From: int max = 0;
+    - To:   int max = numbers.get(0); and adjust loop to start from second element or use for-each with a flag.
+  - Change factorial loop (line 55):
+    - From: for (int i = 1; i &lt; n; i++) {
+    - To:   for (int i = 1; i &lt;= n; i++) {
+
+6) Example of a corrected Calculator.java (concise)
+- Replace methods with these corrected implementations (keeps behavior consistent with tests):
+
+  - sum:
+    public int sum(List&lt;Integer&gt; numbers) {
+        int total = 0;
+        for (int n : numbers) {
+            total += n;
+        }
+        return total;
+    }
+
+  - average:
+    public double average(List&lt;Integer&gt; numbers) {
+        if (numbers.isEmpty()) {
+            return 0;
+        }
+        return (double) sum(numbers) / numbers.size();
+    }
+
+  - max:
+    public int max(List&lt;Integer&gt; numbers) {
+        if (numbers.isEmpty()) {
+            throw new IllegalArgumentException(&quot;List must not be empty&quot;);
+        }
+        int max = numbers.get(0);
+        for (int i = 1; i &lt; numbers.size(); i++) {
+            int n = numbers.get(i);
+            if (n &gt; max) {
+                max = n;
+            }
+        }
+        return max;
+    }
+
+  - factorial:
+    public long factorial(int n) {
+        if (n &lt; 0) {
+            throw new IllegalArgumentException(&quot;n must be non-negative&quot;);
+        }
+        long result = 1;
+        for (int i = 1; i &lt;= n; i++) {
+            result *= i;
+        }
+        return result;
+    }
+
+7) How to run tests locally (commands)
+- From project root (/tmp/buggy-calculator):
+  - mvn -q test
+  - If you want the fail stack traces: mvn test
+
+8) Expected result after applying fixes
+- Tests that previously failed should pass:
+  - sum_of_positive_numbers -&gt; 10
+  - sum_of_empty_list -&gt; 0
+  - average_of_positive_numbers -&gt; 2.5
+  - max_with_negative_numbers -&gt; -1
+  - factorial_of_5 -&gt; 120
+- Existing passing tests should remain passing.
+
+9) Notes / Additional suggestions
+- Consider NPE checks if callers could supply null lists (not currently in tests).
+- Factorial should possibly validate for large n to avoid overflow; tests use small values so that&#39;s acceptable now.
+- Use for-each loops for clarity in sum and max (after initializing max from first element) to reduce index mistakes.
+
+If you want, I can:
+- Prepare a patch (diff) that applies these exact changes to Calculator.java.
+- Or, if you can run mvn test and paste the failing output here, I will validate and refine fixes against the actual test output.</span></span></td></tr>
+<tr><td><div class="wf-agent"><span class="wf-indent"></span><span class="wf-connector">&#x2514;</span><span class="topology-badge sm ai">AI</span> plan</div></td><td class="wf-dur">39.0s</td><td><div class="wf-bar-track"><div class="wf-bar bar-ai" style="left:69.1%;width:10.5%;" title="plan: 39.0s"></div></div></td><td class="wf-io"><span class="tt-trigger">{ExplorationResult=I inspected the ...<span class="tt-content">{ExplorationResult=I inspected the project at /tmp/buggy-calculator to locate C..., UserRequest=Using &#39;/tmp/buggy-calculator&#39; as your working directory, ful...}</span></span></td><td class="wf-io"><span class="tt-trigger">Summary of the approach
+- Fix the f...<span class="tt-content">Summary of the approach
+- Fix the four bugs in src/main/java/Calculator.java identified by the test failures:
+  1. sum: out-of-bounds loop condition (and failure on empty lists).
+  2. average: integer division instead of floating-point.
+  3. max: incorrect initialization when all numbers are negative.
+  4. factorial: loop excludes n (returns (n-1)!).
+- Apply minimal, clear corrections that preserve the class API and satisfy the tests in src/test/java/CalculatorTest.java.
+- Run the project&#39;s test suite with mvn test to verify all tests pass.
+
+Step-by-step implementation instructions
+1. Open the project working directory:
+   cd /tmp/buggy-calculator
+
+2. Edit the file:
+   src/main/java/Calculator.java
+
+3. Replace the buggy method implementations with the corrected code (full file content provided below). Save the file.
+
+4. Run the unit tests:
+   mvn -q test
+   (Or to see full output including stack traces: mvn test)
+
+5. If tests pass, commit the change:
+   git add src/main/java/Calculator.java
+   git commit -m &quot;Fix sum, average, max, factorial bugs in Calculator&quot;
+
+Files to create or modify (with full paths)
+- Modify:
+  - /tmp/buggy-calculator/src/main/java/Calculator.java
+
+Exact code changes needed in each file
+Below is the full corrected content for src/main/java/Calculator.java. Replace the existing file with this content.
+
+File: /tmp/buggy-calculator/src/main/java/Calculator.java
+-------------------------------------------------------
+import java.util.List;
+
+public class Calculator {
+
+    public int sum(List&lt;Integer&gt; numbers) {
+        int total = 0;
+        // Use for-each to avoid index errors and handle empty lists correctly
+        for (int n : numbers) {
+            total += n;
+        }
+        return total;
+    }
+
+    public double average(List&lt;Integer&gt; numbers) {
+        if (numbers.isEmpty()) {
+            return 0;
+        }
+        // Ensure floating-point division to return fractional averages
+        return (double) sum(numbers) / numbers.size();
+    }
+
+    public int max(List&lt;Integer&gt; numbers) {
+        if (numbers.isEmpty()) {
+            throw new IllegalArgumentException(&quot;List must not be empty&quot;);
+        }
+        // Initialize to the first element to correctly handle all-negative lists
+        int max = numbers.get(0);
+        for (int i = 1; i &lt; numbers.size(); i++) {
+            int n = numbers.get(i);
+            if (n &gt; max) {
+                max = n;
+            }
+        }
+        return max;
+    }
+
+    public long factorial(int n) {
+        if (n &lt; 0) {
+            throw new IllegalArgumentException(&quot;n must be non-negative&quot;);
+        }
+        long result = 1;
+        // Include n in the multiplication to compute n!
+        for (int i = 1; i &lt;= n; i++) {
+            result *= i;
+        }
+        return result;
+    }
+}
+-------------------------------------------------------
+
+If you prefer a patch (unified diff) instead of replacing the file, here is a concise diff you can apply with patch:
+
+--- a/src/main/java/Calculator.java
++++ b/src/main/java/Calculator.java
+@@
+-import java.util.List;
+-
+-public class Calculator {
+-
+-    public int sum(List&lt;Integer&gt; numbers) {
+-        int total = 0;
+-        for (int i = 0; i &lt;= numbers.size(); i++) {
+-            total += numbers.get(i);
+-        }
+-        return total;
+-    }
+-
+-    public double average(List&lt;Integer&gt; numbers) {
+-        if (numbers.isEmpty()) {
+-            return 0;
+-        }
+-        return sum(numbers) / numbers.size();
+-    }
+-
+-    public int max(List&lt;Integer&gt; numbers) {
+-        if (numbers.isEmpty()) {
+-            throw new IllegalArgumentException(&quot;List must not be empty&quot;);
+-        }
+-        int max = 0;
+-        for (int n : numbers) {
+-            if (n &gt; max) {
+-                max = n;
+-            }
+-        }
+-        return max;
+-    }
+-
+-    public long factorial(int n) {
+-        if (n &lt; 0) {
+-            throw new IllegalArgumentException(&quot;n must be non-negative&quot;);
+-        }
+-        long result = 1;
+-        for (int i = 1; i &lt; n; i++) {
+-            result *= i;
+-        }
+-        return result;
+-    }
+-
+-}
++import java.util.List;
++
++public class Calculator {
++
++    public int sum(List&lt;Integer&gt; numbers) {
++        int total = 0;
++        for (int n : numbers) {
++            total += n;
++        }
++        return total;
++    }
++
++    public double average(List&lt;Integer&gt; numbers) {
++        if (numbers.isEmpty()) {
++            return 0;
++        }
++        return (double) sum(numbers) / numbers.size();
++    }
++
++    public int max(List&lt;Integer&gt; numbers) {
++        if (numbers.isEmpty()) {
++            throw new IllegalArgumentException(&quot;List must not be empty&quot;);
++        }
++        int max = numbers.get(0);
++        for (int i = 1; i &lt; numbers.size(); i++) {
++            int n = numbers.get(i);
++            if (n &gt; max) {
++                max = n;
++            }
++        }
++        return max;
++    }
++
++    public long factorial(int n) {
++        if (n &lt; 0) {
++            throw new IllegalArgumentException(&quot;n must be non-negative&quot;);
++        }
++        long result = 1;
++        for (int i = 1; i &lt;= n; i++) {
++            result *= i;
++        }
++        return result;
++    }
++
++}
+
+Dependencies and ordering constraints
+- No changes to pom.xml required.
+- Java and Maven versions used by the project must match the project&#39;s pom.xml settings. The code changes use only basic Java features compatible with Java 8+.
+- Make sure you run the tests after editing the file; tests must be run from the project root (/tmp/buggy-calculator).
+
+Test strategy (what to test and how)
+1. Run the project&#39;s unit tests:
+   - mvn -q test
+   - Expected result: All tests in src/test/java/CalculatorTest.java pass.
+
+2. If you want extra manual checks (optional):
+   - sum:
+     - Input: List.of(1,2,3,4) =&gt; 10
+     - Input: List.of() =&gt; 0
+   - average:
+     - Input: List.of(1,2,3,4) =&gt; 2.5
+     - Input: List.of() =&gt; 0
+   - max:
+     - Input: List.of(-5, -1, -3) =&gt; -1
+     - Input: List.of(5) =&gt; 5
+     - Passing empty list should throw IllegalArgumentException
+   - factorial:
+     - factorial(0) =&gt; 1
+     - factorial(1) =&gt; 1
+     - factorial(5) =&gt; 120
+     - factorial(-1) should throw IllegalArgumentException
+3. If tests fail, run:
+   - mvn test
+   and inspect stack traces to see which assertion or exception occurred.
+
+Potential risks, edge cases, and notes
+- Null list arguments:
+  - None of the tests check for null inputs. If callers pass null, current implementations will throw NullPointerException. If desired, consider adding explicit null checks and throwing a clear IllegalArgumentException or returning 0 for sum/average.
+- Factorial overflow:
+  - factorial is implemented with long; values of n &gt; 20 will overflow long. The provided tests use small n, so this is fine. If the API must support larger factorials, consider BigInteger.
+- Average precision:
+  - average returns a double; small floating-point rounding errors are expected. Tests use exact assertEquals for 2.5 and expected 2.5 (JUnit double comparison likely uses delta or exact, but existing tests passed when casted).
+- Concurrency:
+  - Methods are stateless so thread-safety is not an issue.
+- Formatting and import:
+  - The corrected file includes import java.util.List; ensure no conflicting package declarations in the project. The file uses the default package (no package statement), which matches tests as inspected.
+
+If you want, I can:
+- Provide a ready-to-apply patch file (.patch) you can apply with git apply or patch,
+- Or run mvn test locally for you if you paste the test output after running it.</span></span></td></tr>
+<tr><td><div class="wf-agent"><span class="wf-indent"></span><span class="wf-connector">&#x2514;</span><span class="topology-badge sm ai">AI</span> implement</div></td><td class="wf-dur">18.9s</td><td><div class="wf-bar-track"><div class="wf-bar bar-ai" style="left:82.8%;width:5.1%;" title="implement: 18.9s"></div></div></td><td class="wf-io"><span class="tt-trigger">{WorkingDirectory=/tmp/buggy-calcul...<span class="tt-content">{WorkingDirectory=/tmp/buggy-calculator, Plan=Replace the file src/main/java/Calculator.java with the corr..., UserRequest=Using &#39;/tmp/buggy-calculator&#39; as your working directory, ful...}</span></span></td><td class="wf-io"><span class="tt-trigger">I replaced the buggy Calculator imp...<span class="tt-content">I replaced the buggy Calculator implementation with the corrected version you provided.
+
+Files created
+- /tmp/buggy-calculator/src/main/java/Calculator.java
+
+Files modified
+- /tmp/buggy-calculator/src/main/java/Calculator.java
+  - Replaced the original implementation with the corrected code. Changes include:
+    - sum(List&lt;Integer&gt;): switched to a for-each loop to avoid index-out-of-bounds and correctly handle empty lists.
+    - average(List&lt;Integer&gt;): return 0 for empty lists and use floating-point division by casting the sum to double.
+    - max(List&lt;Integer&gt;): throw IllegalArgumentException for empty lists, initialize max to the first list element (handles all-negative lists), and iterate from the second element.
+    - factorial(int): validate non-negative n, loop from 1 through n (inclusive) to compute n! correctly.
+
+Files left unchanged
+- /tmp/buggy-calculator/src/test/java/CalculatorTest.java (tests unchanged)
+
+Deviations from the plan
+- None. I implemented the replacement exactly as specified and saved it at /tmp/buggy-calculator/src/main/java/Calculator.java.
+
+You can now run mvn test.</span></span></td></tr>
+<tr><td><div class="wf-agent"><span class="wf-indent"></span><span class="wf-connector">&#x2514;</span><span class="topology-badge sm ai">AI</span> execute</div></td><td class="wf-dur">28.4s</td><td><div class="wf-bar-track"><div class="wf-bar bar-ai" style="left:89.8%;width:7.7%;" title="execute: 28.4s"></div></div></td><td class="wf-io"><span class="tt-trigger">{WorkingDirectory=/tmp/buggy-calcul...<span class="tt-content">{WorkingDirectory=/tmp/buggy-calculator, ImplementationResult=Replaced src/main/java/Calculator.java with corrected implem...}</span></span></td><td class="wf-io"><span class="tt-trigger">Execution report — working director...<span class="tt-content">Execution report — working directory: /tmp/buggy-calculator
+
+Summary
+- Compilation: SUCCESS
+- Package (with tests skipped): SUCCESS
+- Tests: SUCCESS — all tests passed (11 tests, 0 failures, 0 errors, 0 skipped)
+- No errors or stack traces encountered
+
+Commands executed (with exit codes and relevant output excerpts)
+
+1) List project directory
+- Command:
+  ls -la /tmp/buggy-calculator
+- Exit code: 0
+- Notes: Verified project files (pom.xml, src/).
+
+2) Show updated source file
+- Command:
+  sed -n &#39;1,200p&#39; /tmp/buggy-calculator/src/main/java/Calculator.java
+- Exit code: 0
+- Notes: Confirmed Calculator.java contains corrected implementations for sum, average, max, factorial. (File printed; included for inspection.)
+
+3) Build and package (skip tests)
+- Command:
+  mvn -f /tmp/buggy-calculator -DskipTests=true package
+- Exit code: 0
+- Relevant output:
+  - Recompiling/compiling source (javac)
+  - INFO: Tests are skipped.
+  - INFO: Building jar: /tmp/buggy-calculator/target/buggy-calculator-1.0-SNAPSHOT.jar
+  - INFO: BUILD SUCCESS
+
+4) Run tests
+- Command:
+  mvn -f /tmp/buggy-calculator test
+- Exit code: 0
+- Relevant output:
+  - Using JUnit Platform provider
+  - Running CalculatorTest
+  - Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
+  - INFO: BUILD SUCCESS
+
+Test results (detailed)
+- Test suite: CalculatorTest
+- Tests run: 11
+- Passed: 11
+- Failures: 0
+- Errors: 0
+- Skipped: 0
+- Time elapsed: ~0.051 s for tests
+
+Errors / Stack traces
+- None. No failures or exceptions were produced by the test run.
+
+Additional notes
+- The package step explicitly skipped tests (flag -DskipTests=true) and produced a jar.
+- The subsequent mvn test run executed the test suite and all tests passed.
+- The changes in src/main/java/Calculator.java (for-each sum, double division in average, initializing max from first element, factorial loop &lt;= n) resolved the previously failing test cases.
+
+If you want, I can:
+- Show the full contents of Calculator.java (already printed) or the full Maven test output log,
+- Run individual tests or add extra tests for edge cases.</span></span></td></tr>
+</tbody></table>
+</div>
+</div>
+</div>
+</section>
+<footer class="footer">Generated by LangChain4j at 2026-03-27 12:23:27</footer>
+</main>
+<script>
+function toggle(id) {
+    var body = document.getElementById(id);
+    body.classList.toggle('collapsed');
+    body.previousElementSibling.classList.toggle('collapsed');
+}
+
+function toggleDataFlow() {
+    var svg = document.getElementById('df-svg');
+    if (!svg) return;
+    svg.classList.toggle('df-hidden');
+}
+
+function drawDataFlow() {
+    var svg = document.getElementById('df-svg');
+    var tree = svg ? svg.parentElement : null;
+    if (!svg || !tree) return;
+
+    // Size SVG to match tree
+    svg.style.width = tree.scrollWidth + 'px';
+    svg.style.height = tree.scrollHeight + 'px';
+
+    // Remove old paths
+    svg.querySelectorAll('.df-path').forEach(function(p) { p.remove(); });
+
+    var treeRect = tree.getBoundingClientRect();
+
+    // Build producer map: outputKey -> [node, ...]
+    var prodMap = {};
+    tree.querySelectorAll('.node-card[data-output-key]').forEach(function(n) {
+        var k = n.getAttribute('data-output-key');
+        if (!prodMap[k]) prodMap[k] = [];
+        prodMap[k].push(n);
+    });
+
+    // For each consumer node, draw edges from matching producers
+    tree.querySelectorAll('.node-card[data-input-keys]').forEach(function(consumer) {
+        var keys = consumer.getAttribute('data-input-keys').split(',');
+        var cRect = consumer.getBoundingClientRect();
+        var cx = cRect.left + cRect.width / 2 - treeRect.left;
+        var cy = cRect.top - treeRect.top;
+
+        keys.forEach(function(key) {
+            var producers = prodMap[key];
+            if (!producers) return;
+            producers.forEach(function(producer) {
+                if (producer === consumer) return;
+                // Skip if producer is an ancestor or descendant (structural edge)
+                if (producer.contains(consumer) || consumer.contains(producer)) return;
+
+                var color = producer.getAttribute('data-output-color') || '#999';
+                var pRect = producer.getBoundingClientRect();
+                var px = pRect.left + pRect.width / 2 - treeRect.left;
+                var py = pRect.bottom - treeRect.top;
+
+                var markerId = 'ah-' + Math.abs(hashCode(key));
+                drawEdge(svg, px, py, cx, cy, color, markerId);
+            });
+        });
+    });
+}
+
+function drawEdge(svg, x1, y1, x2, y2, color, markerId) {
+    var dx = x2 - x1;
+    var dy = y2 - y1;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    // Control point offset perpendicular to the line
+    var bend = Math.min(60, dist * 0.3);
+    // Offset to the right of the direction vector
+    var nx = -dy / (dist || 1) * bend;
+    var ny =  dx / (dist || 1) * bend;
+    var cpx = (x1 + x2) / 2 + nx;
+    var cpy = (y1 + y2) / 2 + ny;
+
+    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M' + x1 + ',' + y1 + ' Q' + cpx + ',' + cpy + ' ' + x2 + ',' + y2);
+    path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width', '1.8');
+    path.setAttribute('stroke-dasharray', '6,4');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('opacity', '0.55');
+    path.setAttribute('class', 'df-path');
+    path.setAttribute('marker-end', 'url(#' + markerId + ')');
+    svg.appendChild(path);
+}
+
+function hashCode(s) {
+    var h = 0;
+    for (var i = 0; i < s.length; i++) {
+        h = ((h << 5) - h) + s.charCodeAt(i);
+        h |= 0;
+    }
+    return h;
+}
+
+document.addEventListener('DOMContentLoaded', drawDataFlow);
+window.addEventListener('resize', drawDataFlow);
+</script>
+</body>
+</html>

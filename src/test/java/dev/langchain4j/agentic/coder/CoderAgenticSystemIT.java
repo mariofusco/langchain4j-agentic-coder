@@ -73,13 +73,21 @@ class CoderAgenticSystemIT {
     }
 
     @Test
+    void supervisor_should_fix_buggy_calculator() throws Exception {
+        should_fix_buggy_calculator(CoderAgenticSystem.supervisorCoder(coderModel()));
+    }
+
+    @Test
     void workflow_should_fix_buggy_calculator() throws Exception {
+        should_fix_buggy_calculator(CoderAgenticSystem.workflowCoder(coderModel()));
+    }
+
+    private void should_fix_buggy_calculator(CoderSystem coder) throws Exception {
         // Copy the buggy project to a temp directory so the agent can modify files freely
         Path source = Path.of("src/test/resources/buggy-project");
         Path workDir = Path.of("/tmp/buggy-calculator");
         copyDirectory(source, workDir);
 
-        CoderSystem coder = CoderAgenticSystem.workflowCoder(coderModel());
         String result = coder.code(
                 "Analyze the Calculator.java source and run its tests with 'mvn test'. "
                         + "The tests are currently failing because Calculator.java has bugs. "
@@ -91,7 +99,7 @@ class CoderAgenticSystemIT {
         System.out.println("Working dir: " + workDir.toAbsolutePath());
         System.out.println("Result: " + result);
 
-        generateReport(coder.agentMonitor(), Path.of("src", "test", "resources", "workflow-bugfix.html"));
+        generateReport(coder.agentMonitor(), Path.of("src", "test", "resources", "bugfix.html"));
     }
 
     private static void copyDirectory(Path source, Path target) throws IOException {
