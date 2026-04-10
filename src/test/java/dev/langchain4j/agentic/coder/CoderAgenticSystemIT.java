@@ -102,6 +102,36 @@ class CoderAgenticSystemIT {
         generateReport(coder.agentMonitor(), Path.of("src", "test", "resources", "bugfix.html"));
     }
 
+    @Test
+    void supervisor_should_fix_buggy_cache() throws Exception {
+        should_fix_buggy_cache(CoderAgenticSystem.supervisorCoder(coderModel()));
+    }
+
+    @Test
+    void workflow_should_fix_buggy_cache() throws Exception {
+        should_fix_buggy_cache(CoderAgenticSystem.workflowCoder(coderModel()));
+    }
+
+    private void should_fix_buggy_cache(CoderSystem coder) throws Exception {
+        // Copy the buggy project to a temp directory so the agent can modify files freely
+        Path source = Path.of("src/test/resources/buggy-cache");
+        Path workDir = Path.of("/tmp/buggy-cache");
+        copyDirectory(source, workDir);
+
+        String result = coder.code(
+                "Analyze the LRUCache.java source and run its tests with 'mvn test'. "
+                        + "The tests are currently failing because LRUCache.java has a bug. "
+                        + "Fix the bug in LRUCache.java so that all tests in LRUCacheTest.java pass.",
+                workDir.toAbsolutePath().toString());
+
+        assertThat(result).isNotBlank();
+
+        System.out.println("Working dir: " + workDir.toAbsolutePath());
+        System.out.println("Result: " + result);
+
+        generateReport(coder.agentMonitor(), Path.of("src", "test", "resources", "cache-bugfix.html"));
+    }
+
     private static void copyDirectory(Path source, Path target) throws IOException {
         Files.walkFileTree(source, new SimpleFileVisitor<>() {
             @Override

@@ -28,9 +28,10 @@ public class Models {
     private static final ChatModel OPENAI_BASE_MODEL = OpenAiChatModel.builder()
             .apiKey(System.getenv("OPENAI_API_KEY"))
             .organizationId(System.getenv("OPENAI_ORGANIZATION_ID"))
-//            .modelName(OpenAiChatModelName.GPT_4_O_MINI)
-            .modelName(OpenAiChatModelName.GPT_5_MINI)
-//                        .temperature(0.0)
+//            .modelName(OpenAiChatModelName.GPT_5_MINI)
+            .modelName(OpenAiChatModelName.GPT_4_O_MINI)
+                        .temperature(0.0)
+                        .timeout(Duration.ofMinutes(10))
                         .logRequests(true)
                         .logResponses(true)
                         .build();
